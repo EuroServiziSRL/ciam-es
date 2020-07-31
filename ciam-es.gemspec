@@ -19,5 +19,5 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency("canonix", ["0.1.1"])
   s.add_runtime_dependency("uuid", ["~> 2.3"])
   s.add_runtime_dependency("nokogiri", '>= 1.6.7.2')
-  s.add_runtime_dependency("addressable", [>= "2.4.0"])
+  s.add_runtime_dependency("addressable", [">= 2.4.0"])
 end
