@@ -37,11 +37,11 @@ module Ciam::Saml
       opt = { :name_id => nil, :session_index => nil, :extra_parameters => nil  }.merge(options)
       return nil unless opt[:name_id]
       
-      @request = REXML::Document.new
-      @request.context[:attribute_quote] = :quote
+      request_doc = Ciam::XMLSecurityNew::Document.new
+      request_doc.context[:attribute_quote] = :quote
       
                                 
-      root = @request.add_element "saml2p:LogoutRequest", { "xmlns:saml2p" => PROTOCOL }
+      root = request_doc.add_element "samlp:LogoutRequest", { "xmlns:samlp" => PROTOCOL }
       root.attributes['ID'] = @transaction_id
       root.attributes['IssueInstant'] = @issue_instant
       root.attributes['Version'] = "2.0"
@@ -62,60 +62,83 @@ module Ciam::Saml
         name_id.attributes["SPNameQualifier"] = @settings.sp_name_qualifier
       end
       if opt[:session_index] 
-        session_index = root.add_element "saml2p:SessionIndex" #, { "xmlns:samlp" => PROTOCOL }
+        session_index = root.add_element "samlp:SessionIndex" #, { "xmlns:samlp" => PROTOCOL }
         session_index.text = opt[:session_index]
       end
-      Logging.debug "Created LogoutRequest: #{@request}"
-      meta = Metadata.new(@settings)
-      return meta.create_slo_request( to_s, opt[:extra_parameters] )
+
+      request_doc << REXML::XMLDecl.new("1.0", "UTF-8")
+      #sign logout_request
+      cert = @settings.get_cert(@settings.sp_cert)
+      
+      # embed signature
+      if @settings.metadata_signed && @settings.sp_private_key && @settings.sp_cert
+        private_key = @settings.get_sp_key
+        request_doc.sign_document(private_key, cert)
+      end
+
+
+      puts "Created LogoutRequest: #{request_doc}"
+      
+      #Logout per binding redirect
+      # meta = Metadata.new(@settings)
+      # slo_req = meta.create_slo_request( request_doc.to_s, opt[:extra_parameters] )
+      
+      
+      return request_doc.to_s
+      
       #action, content =  binding_select("SingleLogoutService")
       #Logging.debug "action: #{action} content: #{content}"
       #return [action, content]
-     end
-
-  # function to return the created request as an XML document
-    def to_xml
-    text = ""
-    @request.write(text, 1)
-      return text
     end
-   def to_s
-     @request.to_s
-   end
+
+    # function to return the created request as an XML document
+    def to_xml
+        text = ""
+        @request.write(text, 1)
+        return text
+    end
+
+    def to_s
+        @request.to_s
+    end
+
     # Functions for pulling values out from an IdP initiated LogoutRequest
-  def name_id 
-    element = REXML::XPath.first(@request, "/p:LogoutRequest/a:NameID", { 
-        "p" => PROTOCOL, "a" => ASSERTION } )
-    return nil if element.nil?
-    # Can't seem to get this to work right...
-    #element.context[:compress_whitespace] = ["NameID"]
-    #element.context[:compress_whitespace] = :all
-    str = element.text.gsub(/^\s+/, "")
-    str.gsub!(/\s+$/, "")
-    return str
-  end
+    def name_id 
+      element = REXML::XPath.first(@request, "/p:LogoutRequest/a:NameID", { 
+          "p" => PROTOCOL, "a" => ASSERTION } )
+      return nil if element.nil?
+      # Can't seem to get this to work right...
+      #element.context[:compress_whitespace] = ["NameID"]
+      #element.context[:compress_whitespace] = :all
+      str = element.text.gsub(/^\s+/, "")
+      str.gsub!(/\s+$/, "")
+      return str
+    end
   
-  def transaction_id
-    return @transaction_id if @transaction_id 
-    element = REXML::XPath.first(@request, "/p:LogoutRequest", { 
-        "p" => PROTOCOL} )
-    return nil if element.nil?
-    return element.attributes["ID"]
-  end
-  def is_valid?
-    validate(soft = true)
-  end
+    def transaction_id
+      return @transaction_id if @transaction_id 
+      element = REXML::XPath.first(@request, "/p:LogoutRequest", { 
+          "p" => PROTOCOL} )
+      return nil if element.nil?
+      return element.attributes["ID"]
+    end
+
+    def is_valid?
+      validate(soft = true)
+    end
   
-  def validate!
-    validate( soft = false )
-  end
-  def validate( soft = true )
-    return false if @request.nil?
-      return false if @request.validate(@settings, soft) == false
-    
-    return true
-    
-  end
+    def validate!
+      validate( soft = false )
+    end
+
+    def validate( soft = true )
+      return false if @request.nil?
+        return false if @request.validate(@settings, soft) == false
+      
+      return true
+      
+    end
+
     private 
     
     def self.timestamp

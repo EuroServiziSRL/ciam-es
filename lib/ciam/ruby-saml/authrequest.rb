@@ -29,7 +29,7 @@ module Ciam::Saml
       # Create AuthnRequest root element using REXML 
       request_doc = Ciam::XMLSecurityNew::Document.new
       request_doc.context[:attribute_quote] = :quote
-      root = request_doc.add_element "saml2p:AuthnRequest", { "xmlns:saml2p" => "urn:oasis:names:tc:SAML:2.0:protocol", 
+      root = request_doc.add_element "samlp:AuthnRequest", { "xmlns:samlp" => "urn:oasis:names:tc:SAML:2.0:protocol", 
                                                               "xmlns:saml" => "urn:oasis:names:tc:SAML:2.0:assertion"
                                                              }
       root.attributes['ID'] = uuid
@@ -72,7 +72,7 @@ module Ciam::Saml
 
 
       if @settings.name_identifier_format != nil
-        root.add_element "saml2p:NameIDPolicy", { 
+        root.add_element "samlp:NameIDPolicy", { 
             # Might want to make AllowCreate a setting?
             #{}"AllowCreate"     => "true",
             "Format"          => @settings.name_identifier_format[0]
@@ -83,8 +83,8 @@ module Ciam::Saml
       # match required for authentication to succeed.  If this is not defined, 
       # the IdP will choose default rules for authentication.  (Shibboleth IdP)
       if @settings.authn_context != nil
-        requested_context = root.add_element "saml2p:RequestedAuthnContext", { 
-          "Comparison" => "minimum"
+        requested_context = root.add_element "samlp:RequestedAuthnContext", { 
+          "Comparison" => "exact"
         }
         context_class = []
         @settings.authn_context.each_with_index{ |context, index|
@@ -95,12 +95,12 @@ module Ciam::Saml
       end
 
       if @settings.requester_identificator != nil
-        requester_identificator = root.add_element "saml2p:Scoping", { 
+        requester_identificator = root.add_element "samlp:Scoping", { 
           "ProxyCount" => "0"
         }
         identificators = []
         @settings.requester_identificator.each_with_index{ |requester, index|
-          identificators[index] = requester_identificator.add_element "saml2p:RequesterID"
+          identificators[index] = requester_identificator.add_element "samlp:RequesterID"
           identificators[index].text = requester
         }
         
@@ -109,12 +109,12 @@ module Ciam::Saml
       request_doc << REXML::XMLDecl.new("1.0", "UTF-8")
       
       #LA FIRMA VA MESSA SOLO NEL CASO CON HTTP POST
-      # cert = @settings.get_sp_cert
-      #   # embed signature
-      #   if @settings.metadata_signed && @settings.sp_private_key && @settings.sp_cert
-      #     private_key = @settings.get_sp_key
-      #     request_doc.sign_document(private_key, cert)
-      #   end
+      cert = @settings.get_cert(@settings.sp_cert)
+      # embed signature
+      if @settings.metadata_signed && @settings.sp_private_key && @settings.sp_cert
+        private_key = @settings.get_sp_key
+        request_doc.sign_document(private_key, cert)
+      end
 
       # stampo come stringa semplice i metadata per non avere problemi con validazione firma
       #ret = request_doc.to_s
