@@ -30,18 +30,10 @@ module Ciam
       def generate(settings)
         #meta_doc = REXML::Document.new
         meta_doc = Ciam::XMLSecurityNew::Document.new
-        if settings.aggregato
-          root = meta_doc.add_element "md:EntityDescriptor", { 
-            "xmlns:md"        => "urn:oasis:names:tc:SAML:2.0:metadata",
-            "xmlns:xml"       => "http://www.w3.org/XML/1998/namespace",
-            "xmlns:ciam"        => "https://ciam.gov.it/saml-extensions",
-          }
-        else
-          root = meta_doc.add_element "md:EntityDescriptor", { 
+        root = meta_doc.add_element "md:EntityDescriptor", { 
             "xmlns:md"        => "urn:oasis:names:tc:SAML:2.0:metadata",
             "xmlns:xml"       => "http://www.w3.org/XML/1998/namespace"
           }
-        end
         
         if settings.issuer != nil
           root.attributes["entityID"] = settings.issuer
@@ -223,52 +215,11 @@ module Ciam
             "xml:lang" => "it"
         }
     
-        org_display_name.text = settings.organization['org_display_name']+(settings.aggregato ? " tramite #{settings.hash_aggregatore['soggetto_aggregatore']}" : '')
+        org_display_name.text = settings.organization['org_display_name']
         org_url = organization.add_element "md:OrganizationURL", {
             "xml:lang" => "it"
         }
         org_url.text = settings.organization['org_url']
-
-        #ContactPerson per sp aggregato
-        if settings.aggregato
-          contact_person_aggregatore = root.add_element "md:ContactPerson", {
-            "contactType" => "other",
-            "ciam:entityType" => "ciam:aggregator"
-          }
-          company = contact_person_aggregatore.add_element "md:Company"
-          company.text = settings.hash_aggregatore['soggetto_aggregatore']
-
-          extensions_aggregatore = contact_person_aggregatore.add_element "md:Extensions"
-          vat_number_aggregatore = extensions_aggregatore.add_element "ciam:VATNumber"
-          vat_number_aggregatore.text = settings.hash_aggregatore['piva_aggregatore']
-          
-          ipa_code_aggregatore = extensions_aggregatore.add_element "ciam:IPACode"
-          ipa_code_aggregatore.text = settings.hash_aggregatore['cipa_aggregatore']
-
-          fiscal_code_aggregatore = extensions_aggregatore.add_element "ciam:FiscalCode"
-          fiscal_code_aggregatore.text = settings.hash_aggregatore['cf_aggregatore']
-
-          contact_person_aggregato = root.add_element "md:ContactPerson", {
-            "contactType" => "other",
-            "ciam:entityType" => "ciam:aggregated"
-          }
-          company = contact_person_aggregato.add_element "md:Company"
-          company.text = settings.organization['org_name']
-
-          extensions_aggregato = contact_person_aggregato.add_element "md:Extensions"
-          unless settings.hash_aggregatore['soggetto_aggregato']['vat_number'].blank?
-            vat_number_aggregato = extensions_aggregato.add_element "ciam:VATNumber"
-            vat_number_aggregato.text = settings.hash_aggregatore['soggetto_aggregato']['vat_number']
-          end
-          unless settings.hash_aggregatore['soggetto_aggregato']['ipa_code'].blank?
-            ipa_code_aggregato = extensions_aggregato.add_element "ciam:IPACode" 
-            ipa_code_aggregato.text = settings.hash_aggregatore['soggetto_aggregato']['ipa_code']
-          end
-          unless settings.hash_aggregatore['soggetto_aggregato']['fiscal_code'].blank?
-            fiscal_code_aggregato = extensions_aggregato.add_element "ciam:FiscalCode" 
-            fiscal_code_aggregato.text = settings.hash_aggregatore['soggetto_aggregato']['fiscal_code']
-          end
-        end
 
         #meta_doc << REXML::XMLDecl.new(version='1.0', encoding='UTF-8')
         meta_doc << REXML::XMLDecl.new("1.0", "UTF-8")
