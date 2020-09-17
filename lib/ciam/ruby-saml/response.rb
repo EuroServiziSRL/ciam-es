@@ -166,12 +166,6 @@ module Ciam
 
             }
 
-            issuer_assertion_nodes.each{ |iss|
-              #controllo: L'attributo Format di Issuer deve essere presente con il valore urn:oasis:names:tc:SAML:2.0:nameid-format:entity
-              return (soft ? false : validation_error("Elemento Issuer non ha formato corretto ")) if iss.attributes['Format'] != 'urn:oasis:names:tc:SAML:2.0:nameid-format:entity'
-
-            }
-
             nodes = issuer_response_nodes + issuer_assertion_nodes
 
             nodes.map { |node| Utils.element_text(node) }.compact.uniq
