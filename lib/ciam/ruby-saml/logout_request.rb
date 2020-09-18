@@ -41,26 +41,24 @@ module Ciam::Saml
       request_doc.context[:attribute_quote] = :quote
       
                                 
-      root = request_doc.add_element "samlp:LogoutRequest", { "xmlns:samlp" => PROTOCOL }
+      root = request_doc.add_element "samlp:LogoutRequest", { "xmlns:samlp" => PROTOCOL, "xmlns:saml" => ASSERTION }
       root.attributes['ID'] = @transaction_id
       root.attributes['IssueInstant'] = @issue_instant
       root.attributes['Version'] = "2.0"
       root.attributes['Destination'] = @settings.single_logout_destination
       
-      issuer = root.add_element "saml2:Issuer", { "xmlns:saml2" => ASSERTION  }
-      issuer.attributes['Format'] = "urn:oasis:names:tc:SAML:2.0:nameid-format:entity"
-      #issuer.text = @settings.issuer
-      #per la federazione trentina qui ci vanno i metadati...
-      issuer.text = @settings.idp_metadata
+      issuer = root.add_element "saml:Issuer"#, { "xmlns:saml2" => ASSERTION  }
+      #issuer.attributes['Format'] = "urn:oasis:names:tc:SAML:2.0:nameid-format:entity"
+      issuer.text = @settings.issuer
 
-      name_id = root.add_element "saml2:NameID", { "xmlns:saml2" => ASSERTION }
+      name_id = root.add_element "saml:NameID"#, { "xmlns:saml2" => ASSERTION }
       name_id.attributes['Format'] = "urn:oasis:names:tc:SAML:2.0:nameid-format:transient"
       name_id.attributes['NameQualifier'] = @settings.idp_name_qualifier
       name_id.text = opt[:name_id]
       # I believe the rest of these are optional
-      if @settings && @settings.sp_name_qualifier
-        name_id.attributes["SPNameQualifier"] = @settings.sp_name_qualifier
-      end
+      # if @settings && @settings.sp_name_qualifier
+      #   name_id.attributes["SPNameQualifier"] = @settings.sp_name_qualifier
+      # end
       if opt[:session_index] 
         session_index = root.add_element "samlp:SessionIndex" #, { "xmlns:samlp" => PROTOCOL }
         session_index.text = opt[:session_index]

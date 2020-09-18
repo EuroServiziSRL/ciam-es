@@ -98,8 +98,13 @@ module Ciam
             parse_time(node, "SessionNotOnOrAfter")
           end
         end
-        
 
+        def session_index
+          @session_index ||= begin
+            node = REXML::XPath.first(document, "/p:Response/a:Assertion/a:AuthnStatement", { "p" => PROTOCOL, "a" => ASSERTION })
+            node.attributes["SessionIndex"] unless node.blank?
+          end
+        end
 
         # Checks the status of the response for a "Success" code
         def success?
