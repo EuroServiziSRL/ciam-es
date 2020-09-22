@@ -5,13 +5,15 @@ require "rexml/document"
 module Ciam
   module Saml
     class LogoutResponse
-      include Coding
-		include Request
+        include Coding
+		include Response
 		ASSERTION = "urn:oasis:names:tc:SAML:2.0:assertion"
 		PROTOCOL  = "urn:oasis:names:tc:SAML:2.0:protocol"
 		DSIG      = "http://www.w3.org/2000/09/xmldsig#"
 
-      def initialize( options = { } )
+		attr_accessor :settings
+
+		def initialize( options = { } )
 			opt = { :response => nil, :settings => nil }.merge(options)
 			# We've recieved a LogoutResponse from the IdP 
 			if opt[:response]
@@ -32,7 +34,7 @@ module Ciam
 			if opt[:settings]
 				@settings = opt[:settings]
 			end
-      end
+		end
 
 		# Create a LogoutResponse to to the IdP's LogoutRequest
 		#  (For IdP initiated SLO)
@@ -42,11 +44,12 @@ module Ciam
 				:status => "urn:oasis:names:tc:SAML:2.0:status:Success", 
 				:extra_parameters => nil }.merge(options)
 			return nil if opt[:transaction_id].nil?
-			@response = REXML::Document.new
-			@response.context[:attribute_quote] = :quote
+			response_doc = Ciam::XMLSecurityNew::Document.new
+			response_doc.context[:attribute_quote] = :quote
+
 			uuid = "_" + UUID.new.generate
 			time = Time.now.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
-			root = @response.add_element "saml2p:LogoutResponse", { "xmlns:saml2p" => PROTOCOL }
+			root = response_doc.add_element "saml2p:LogoutResponse", { "xmlns:saml2p" => PROTOCOL }
 			root.attributes['ID'] = uuid
 			root.attributes['IssueInstant'] = time
 			root.attributes['Version'] = "2.0"
@@ -68,44 +71,56 @@ module Ciam
 				}
 				issuer.text = @settings.issuer
 			end
-			meta = Metadata.new( @settings )
-			Logging.debug "Created LogoutResponse:\n#{@response}"
-			return meta.create_slo_response( to_s, opt[:extra_parameters] )
+
+			response_doc << REXML::XMLDecl.new("1.0", "UTF-8")
+      		#sign logout_response
+      		cert = @settings.get_cert(@settings.sp_cert)
+
+			# embed signature
+			if @settings.metadata_signed && @settings.sp_private_key && @settings.sp_cert
+				private_key = @settings.get_sp_key
+				response_doc.sign_document(private_key, cert)
+			  end
 			
-			#root.attributes['Destination'] = action
+			Logging.debug "Created LogoutResponse:\n #{response_doc}"
 			
+			return request_doc.to_s
+
 		end
+
 		# function to return the created request as an XML document
 		def to_xml
 			text = ""
 			@response.write(text, 1)
 			return text
 		end
+
 		def to_s
 			@response.to_s
 		end
 		
-      def issuer
-			element = REXML::XPath.first(@response, "/p:LogoutResponse/a:Issuer", { 
-						"p" => PROTOCOL, "a" => ASSERTION} )
-			return nil if element.nil?
-			element.text
-      end
+		def issuer
+				element = REXML::XPath.first(@response, "/p:LogoutResponse/a:Issuer", { 
+							"p" => PROTOCOL, "a" => ASSERTION} )
+				return nil if element.nil?
+				element.text
+		end
 
-      def in_response_to
+		def in_response_to
 			element = REXML::XPath.first(@response, "/p:LogoutResponse", {
 					 "p" => PROTOCOL })
 			return nil if element.nil?
-        element.attributes["InResponseTo"]
-      end
+        	element.attributes["InResponseTo"]
+      	end
 
-      def success?
+      	def success?
 			element = REXML::XPath.first(@response, "/p:LogoutResponse/p:Status/p:StatusCode", {
 					"p" => PROTOCOL })
 			return false if element.nil?
-        element.attributes["Value"] == "urn:oasis:names:tc:SAML:2.0:status:Success"
-        
-      end
+			element.attributes["Value"] == "urn:oasis:names:tc:SAML:2.0:status:Success"
+			
+		end
+
 		def is_valid?
 			validate(soft = true)
 		end
@@ -113,6 +128,7 @@ module Ciam
 		def validate!
 			validate( soft = false )
 		end
+
 		def validate( soft = true )
 			return false if @response.nil?
 			# Skip validation with a failed response if we don't have settings
@@ -123,10 +139,12 @@ module Ciam
 			
 		end
 
-    protected
+	protected
+	
       def document
         REXML::Document.new(@response)
       end
-    end
+	
+	end
   end
 end
