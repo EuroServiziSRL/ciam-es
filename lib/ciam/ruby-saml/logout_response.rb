@@ -6,7 +6,7 @@ module Ciam
   module Saml
     class LogoutResponse
         include Coding
-		include Response
+		include Request
 		ASSERTION = "urn:oasis:names:tc:SAML:2.0:assertion"
 		PROTOCOL  = "urn:oasis:names:tc:SAML:2.0:protocol"
 		DSIG      = "http://www.w3.org/2000/09/xmldsig#"
@@ -84,7 +84,7 @@ module Ciam
 			
 			Logging.debug "Created LogoutResponse:\n #{response_doc}"
 			
-			return request_doc.to_s
+			return response_doc.to_s
 
 		end
 
