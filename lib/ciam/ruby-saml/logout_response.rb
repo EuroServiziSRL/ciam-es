@@ -53,17 +53,12 @@ module Ciam
 			root.attributes['ID'] = uuid
 			root.attributes['IssueInstant'] = time
 			root.attributes['Version'] = "2.0"
+			root.attributes['Destination'] = @settings.single_logout_destination
 			# Just convenient naming to accept both names as InResponseTo
 			if opt[:transaction_id] 
 				root.attributes['InResponseTo'] = opt[:transaction_id]
 			elsif opt[:in_response_to]
 				root.attributes['InResponseTo'] = opt[:in_response_to]
-			end
-			if opt[:status]
-				status = root.add_element "saml2p:Status"
-				status_code = status.add_element "saml2p:StatusCode", {
-						"Value" => opt[:status]
-				}
 			end
 			if @settings && @settings.issuer
 				issuer = root.add_element "saml:Issuer", {
@@ -80,8 +75,15 @@ module Ciam
 			if @settings.metadata_signed && @settings.sp_private_key && @settings.sp_cert
 				private_key = @settings.get_sp_key
 				response_doc.sign_document(private_key, cert)
-			  end
+			end
 			
+			if opt[:status]
+				status = root.add_element "saml2p:Status"
+				status_code = status.add_element "saml2p:StatusCode", {
+						"Value" => opt[:status]
+				}
+			end
+
 			Logging.debug "Created LogoutResponse:\n #{response_doc}"
 			
 			return response_doc.to_s
