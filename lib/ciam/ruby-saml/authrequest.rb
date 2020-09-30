@@ -37,7 +37,6 @@ module Ciam::Saml
       root.attributes['Version'] = "2.0"
       #root.attributes['ProtocolBinding'] = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
       root.attributes['AttributeConsumingServiceIndex'] = @settings.assertion_consumer_service_index
-      root.attributes['ForceAuthn'] = "true"
       #root.attributes['IsPassive'] = "false"
       #usato AssertionConsumerServiceURL e ProtocolBinding in alternativa, pag 8 regole tecniche
       root.attributes['AssertionConsumerServiceIndex'] = @settings.attribute_consuming_service_index
